@@ -1,0 +1,21 @@
+{
+  "name": "leitir-cli",
+  "version": "0.1.0",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "leitir": "src/index.ts"
+  },
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build --compile src/index.ts --outfile leitir",
+    "typecheck": "bunx tsc --noEmit",
+    "lint": "bunx biome check src/",
+    "check": "bun run lint && bun run typecheck"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.12"
+  }
+}
