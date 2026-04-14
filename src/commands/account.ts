@@ -1,6 +1,7 @@
 import { LeitirClient } from "../lib/client.ts";
 import { requireAuth } from "../lib/config.ts";
-import { formatDate, jsonMode, log, output } from "../lib/output.ts";
+import { formatDate, jsonMode, log, output, outputError } from "../lib/output.ts";
+import type { Hold } from "../lib/types.ts";
 
 export async function showCounters(): Promise<void> {
 	const { jwt } = requireAuth();
@@ -66,6 +67,69 @@ export async function showRequests(): Promise<void> {
 		log(`  ${hold.title}`);
 		log(`    Status: ${available}  |  Pickup: ${hold.pickuplocationname}  |  Requested: ${formatDate(hold.requestdate)}  ${cancelable}`);
 		log(`    ID: ${hold.requestid}\n`);
+	}
+}
+
+// ─── Cancel request ─────────────────────────────────────────────
+
+function tokenize(text: string): string[] {
+	return text.toLowerCase().replace(/[^\w\sáéíóúýþæöð]/g, "").split(/\s+/).filter(Boolean);
+}
+
+function fuzzyScore(query: string, hold: Hold): number {
+	const queryTokens = tokenize(query);
+	const searchable = `${hold.title} ${hold.author ?? ""}`;
+	const targetTokens = tokenize(searchable);
+	let matched = 0;
+	for (const qt of queryTokens) {
+		if (targetTokens.some((tt) => tt.includes(qt) || qt.includes(tt))) {
+			matched++;
+		}
+	}
+	return queryTokens.length > 0 ? matched / queryTokens.length : 0;
+}
+
+export async function cancelRequest(idOrTitle: string): Promise<void> {
+	const { jwt } = requireAuth();
+	const client = new LeitirClient(jwt);
+
+	// Numeric ID: use directly
+	if (/^\d+$/.test(idOrTitle)) {
+		const result = await client.cancelRequest(idOrTitle);
+		if (jsonMode) {
+			output(result);
+		} else {
+			log("Request cancelled.");
+		}
+		return;
+	}
+
+	// Fuzzy match against hold titles
+	const res = await client.getRequests();
+	const holds = res.data.holds.hold;
+	const scored = holds
+		.map((h) => ({ hold: h, score: fuzzyScore(idOrTitle, h) }))
+		.filter((s) => s.score > 0.4)
+		.sort((a, b) => b.score - a.score);
+
+	if (scored.length === 0) {
+		outputError(`No request matching "${idOrTitle}". Run 'leitir requests' to see active requests.`, 3);
+	}
+
+	const best = scored[0]!;
+	if (best.hold.cancel !== "Y") {
+		outputError(`"${best.hold.title}" cannot be cancelled.`, 3);
+	}
+
+	const result = await client.cancelRequest(best.hold.requestid);
+
+	if (jsonMode) {
+		output({ ...result as object, matchedTitle: best.hold.title, matchScore: best.score });
+	} else {
+		log(`Cancelled: ${best.hold.title}`);
+		if (best.score < 1) {
+			log(`  (matched with ${Math.round(best.score * 100)}% confidence)`);
+		}
 	}
 }
 

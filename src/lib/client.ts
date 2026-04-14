@@ -134,6 +134,14 @@ export class LeitirClient {
 		);
 	}
 
+	async cancelRequest(requestId: string): Promise<unknown> {
+		return this.request("POST", `/primaws/rest/priv/myaccount/cancel_requests?lang=${LANG}`, {
+			headers: this.authHeaders(),
+			body: JSON.stringify({ id: requestId }),
+			contentType: "application/json",
+		});
+	}
+
 	async getFines(): Promise<AlmaResponse<FinesData>> {
 		return this.request(
 			"GET",

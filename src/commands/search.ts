@@ -1,27 +1,27 @@
 import { LeitirClient } from "../lib/client.ts";
 import { loadToken } from "../lib/config.ts";
-import { jsonMode, log, output } from "../lib/output.ts";
+import { cleanDisplay, jsonMode, log, output } from "../lib/output.ts";
 import type { SearchDoc } from "../lib/types.ts";
 
 function mapDoc(doc: SearchDoc) {
 	return {
 		recordId: doc.pnx.control.recordid?.[0] ?? null,
 		sourceId: doc.pnx.control.sourceid?.[0] ?? null,
-		title: doc.pnx.display.title?.[0] ?? "Untitled",
-		creator: doc.pnx.display.creator?.[0] ?? null,
+		title: cleanDisplay(doc.pnx.display.title?.[0]) ?? "Untitled",
+		creator: cleanDisplay(doc.pnx.display.creator?.[0]),
 		type: doc.pnx.display.type?.[0] ?? null,
 		date: doc.pnx.display.creationdate?.[0] ?? null,
-		publisher: doc.pnx.display.publisher?.[0] ?? null,
+		publisher: cleanDisplay(doc.pnx.display.publisher?.[0]),
 		language: doc.pnx.display.language?.[0] ?? null,
 		subjects: doc.pnx.display.subject ?? [],
-		description: doc.pnx.display.description?.[0] ?? null,
+		description: cleanDisplay(doc.pnx.display.description?.[0]),
 		context: doc.context,
 	};
 }
 
 function printDoc(doc: SearchDoc): void {
-	const title = doc.pnx.display.title?.[0] ?? "Untitled";
-	const creator = doc.pnx.display.creator?.[0];
+	const title = cleanDisplay(doc.pnx.display.title?.[0]) ?? "Untitled";
+	const creator = cleanDisplay(doc.pnx.display.creator?.[0]);
 	const type = doc.pnx.display.type?.[0];
 	const date = doc.pnx.display.creationdate?.[0];
 	const lang = doc.pnx.display.language?.[0];

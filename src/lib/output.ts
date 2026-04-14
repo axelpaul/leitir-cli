@@ -23,6 +23,12 @@ export function log(message: string): void {
 	}
 }
 
+/** Strip Primo display artifacts like $$Q..., $$T..., trailing whitespace */
+export function cleanDisplay(value: string | null | undefined): string | null {
+	if (!value) return null;
+	return value.replace(/\$\$[A-Z][^$]*/g, "").trim() || null;
+}
+
 export function formatDate(yyyymmdd: string): string {
 	if (yyyymmdd.length !== 8) return yyyymmdd;
 	return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;

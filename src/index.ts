@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { showCounters, showFines, showProfile, showRequests } from "./commands/account.ts";
+import { cancelRequest, showCounters, showFines, showProfile, showRequests } from "./commands/account.ts";
 import { login, logout } from "./commands/auth.ts";
 import { listLoans, renewAll, renewLoan } from "./commands/loans.ts";
 import { search, suggest } from "./commands/search.ts";
@@ -38,6 +38,14 @@ const COMMANDS = [
 		name: "requests",
 		description: "List hold requests and their status",
 		args: [],
+		env: [{ name: "LEITIR_TOKEN", description: "JWT token" }],
+	},
+	{
+		name: "cancel",
+		description: "Cancel a hold request by ID or title (fuzzy)",
+		args: [
+			{ name: "idOrTitle", type: "string", required: true, positional: true, description: "Request ID or partial title for fuzzy match" },
+		],
 		env: [{ name: "LEITIR_TOKEN", description: "JWT token" }],
 	},
 	{
@@ -132,6 +140,7 @@ Commands:
   renew <id|title>         Renew by loan ID or title (fuzzy match)
   renew --all              Renew all renewable loans
   requests                 List hold requests
+  cancel <id|title>        Cancel a hold request (fuzzy match)
   fines                    List fines
   account                  Account overview
   profile                  Show personal settings
@@ -197,6 +206,13 @@ try {
 		case "requests":
 			await showRequests();
 			break;
+
+		case "cancel": {
+			const idOrTitle = positional.slice(1).join(" ");
+			if (!idOrTitle) outputError("Usage: leitir cancel <id|title>");
+			await cancelRequest(idOrTitle);
+			break;
+		}
 
 		case "fines":
 			await showFines();
