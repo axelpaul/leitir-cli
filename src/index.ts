@@ -105,6 +105,11 @@ for (let i = 0; i < rawArgs.length; i++) {
 }
 const command = positional[0];
 
+if (command === "serve") {
+	const { serve } = await import("./mcp/server.ts");
+	await serve();
+}
+
 function getFlag(name: string): string | undefined {
 	const idx = rawArgs.indexOf(`--${name}`);
 	if (idx === -1 || idx + 1 >= rawArgs.length) return undefined;
@@ -146,6 +151,7 @@ Commands:
   profile                  Show personal settings
   search <query>           Search local catalog (--global for worldwide)
   suggest <query>          Search suggestions
+  serve                    Start local read-only MCP server (stdio)
 
 Global flags:
   --json         Force JSON output
@@ -174,7 +180,7 @@ Examples:
 
 // ─── Routing ────────────────────────────────────────────────────
 
-try {
+if (command !== "serve") try {
 	switch (command) {
 		case "login": {
 			const username = positional[1];
