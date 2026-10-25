@@ -1,38 +1,49 @@
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { CachedToken } from "./types.ts";
 
-const CONFIG_DIR = join(homedir(), ".leitir");
-const TOKEN_PATH = join(CONFIG_DIR, "token.json");
+/** `$XDG_CONFIG_HOME/leitir-cli` (default `~/.config/leitir-cli`). */
+export function configDir(): string {
+	const base = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
+	return join(base, "leitir-cli");
+}
 
-function ensureDir(): void {
-	if (!existsSync(CONFIG_DIR)) {
-		mkdirSync(CONFIG_DIR, { recursive: true });
-	}
+export function tokenPath(): string {
+	return join(configDir(), "token.json");
+}
+
+/** Pre-0.2 location; still read (never written) so existing logins keep working. */
+function legacyTokenPath(): string {
+	return join(homedir(), ".leitir", "token.json");
 }
 
 export function saveToken(jwt: string): void {
-	ensureDir();
+	const dir = configDir();
+	if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
 	// Alma JWTs have a 24h lifetime by default
 	const token: CachedToken = {
 		jwt,
 		expiresAt: Date.now() + 23 * 60 * 60 * 1000,
 	};
-	writeFileSync(TOKEN_PATH, JSON.stringify(token));
+	writeFileSync(tokenPath(), JSON.stringify(token), { mode: 0o600 });
+	chmodSync(tokenPath(), 0o600);
 }
 
 export function loadToken(): CachedToken | null {
-	if (!existsSync(TOKEN_PATH)) return null;
-	try {
-		return JSON.parse(readFileSync(TOKEN_PATH, "utf-8")) as CachedToken;
-	} catch {
-		return null;
+	for (const path of [tokenPath(), legacyTokenPath()]) {
+		if (!existsSync(path)) continue;
+		try {
+			return JSON.parse(readFileSync(path, "utf-8")) as CachedToken;
+		} catch {}
 	}
+	return null;
 }
 
 export function clearToken(): void {
-	if (existsSync(TOKEN_PATH)) unlinkSync(TOKEN_PATH);
+	for (const path of [tokenPath(), legacyTokenPath()]) {
+		if (existsSync(path)) unlinkSync(path);
+	}
 }
 
 export function requireAuth(): CachedToken {

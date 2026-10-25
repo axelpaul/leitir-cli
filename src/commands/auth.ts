@@ -1,5 +1,5 @@
 import { LeitirClient } from "../lib/client.ts";
-import { clearToken, saveToken } from "../lib/config.ts";
+import { clearToken, saveToken, tokenPath } from "../lib/config.ts";
 import { jsonMode, log, output } from "../lib/output.ts";
 
 export async function login(username: string, password: string): Promise<void> {
@@ -10,7 +10,7 @@ export async function login(username: string, password: string): Promise<void> {
 	if (jsonMode) {
 		output({ ok: true, message: "Logged in" });
 	} else {
-		log("Logged in successfully. Token cached to ~/.leitir/token.json");
+		log(`Logged in successfully. Token cached to ${tokenPath()}`);
 	}
 }
 

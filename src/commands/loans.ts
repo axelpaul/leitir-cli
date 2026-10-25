@@ -1,29 +1,16 @@
-import { LeitirClient } from "../lib/client.ts";
-import { requireAuth } from "../lib/config.ts";
-import { daysUntil, formatDate, jsonMode, log, output, outputError } from "../lib/output.ts";
-import type { Loan } from "../lib/types.ts";
+import { jsonMode, log, output } from "../lib/output.ts";
+import {
+	authClient,
+	listLoans as fetchLoans,
+	renewAllLoans,
+	renewLoan as renewOne,
+} from "../lib/service.ts";
 
 export async function listLoans(): Promise<void> {
-	const { jwt } = requireAuth();
-	const client = new LeitirClient(jwt);
-	const res = await client.getLoans();
-	const loans = res.data.loans.loan;
+	const loans = await fetchLoans(authClient());
 
 	if (jsonMode) {
-		output({
-			count: loans.length,
-			loans: loans.map((l) => ({
-				loanId: l.loanid,
-				title: l.title,
-				author: l.author,
-				dueDate: formatDate(l.duedate),
-				daysUntilDue: daysUntil(l.duedate),
-				renewable: l.renew === "Y",
-				status: l.loanstatus,
-				location: l.mainlocationname,
-				barcode: l.itembarcode,
-			})),
-		});
+		output({ count: loans.length, loans });
 		return;
 	}
 
@@ -34,88 +21,31 @@ export async function listLoans(): Promise<void> {
 
 	log(`Active loans (${loans.length}):\n`);
 	for (const loan of loans) {
-		const days = daysUntil(loan.duedate);
-		const dueStr = formatDate(loan.duedate);
-		const renewable = loan.renew === "Y" ? "renewable" : "not renewable";
+		const days = loan.daysUntilDue;
+		const renewable = loan.renewable ? "renewable" : "not renewable";
 		const urgency = days <= 3 ? " (!)" : days <= 7 ? " (*)" : "";
 		log(`  ${loan.title}`);
-		log(`    Due: ${dueStr} (${days}d)${urgency}  |  ${renewable}  |  ${loan.mainlocationname}`);
-		log(`    ID: ${loan.loanid}\n`);
+		log(`    Due: ${loan.dueDate} (${days}d)${urgency}  |  ${renewable}  |  ${loan.location}`);
+		log(`    ID: ${loan.loanId}\n`);
 	}
-}
-
-// ─── Fuzzy matching ─────────────────────────────────────────────
-
-function tokenize(text: string): string[] {
-	return text.toLowerCase().replace(/[^\w\sáéíóúýþæöð]/g, "").split(/\s+/).filter(Boolean);
-}
-
-function fuzzyScore(query: string, loan: Loan): number {
-	const queryTokens = tokenize(query);
-	const searchable = `${loan.title} ${loan.author}`;
-	const targetTokens = tokenize(searchable);
-	let matched = 0;
-	for (const qt of queryTokens) {
-		if (targetTokens.some((tt) => tt.includes(qt) || qt.includes(tt))) {
-			matched++;
-		}
-	}
-	return queryTokens.length > 0 ? matched / queryTokens.length : 0;
-}
-
-async function resolveLoans(client: LeitirClient): Promise<Loan[]> {
-	const res = await client.getLoans();
-	return res.data.loans.loan;
 }
 
 export async function renewLoan(idOrTitle: string): Promise<void> {
-	const { jwt } = requireAuth();
-	const client = new LeitirClient(jwt);
+	const result = await renewOne(authClient(), idOrTitle);
 
-	// If it looks like a numeric loan ID, use it directly
-	if (/^\d+$/.test(idOrTitle)) {
-		const result = await client.renewLoan(idOrTitle);
-		if (jsonMode) {
-			output(result);
-		} else {
-			log("Loan renewed successfully.");
-		}
+	if (jsonMode) {
+		output(result);
 		return;
 	}
 
-	// Fuzzy match against loan titles
-	const loans = await resolveLoans(client);
-	const scored = loans
-		.map((loan) => ({ loan, score: fuzzyScore(idOrTitle, loan) }))
-		.filter((s) => s.score > 0.4)
-		.sort((a, b) => b.score - a.score);
-
-	if (scored.length === 0) {
-		outputError(`No loan matching "${idOrTitle}". Run 'leitir loans' to see active loans.`, 3);
-	}
-
-	const best = scored[0]!;
-	if (best.loan.renew !== "Y") {
-		outputError(`"${best.loan.title}" is not renewable.`, 3);
-	}
-
-	const result = await client.renewLoan(best.loan.loanid);
-
-	if (jsonMode) {
-		output({ ...result as object, matchedTitle: best.loan.title, matchScore: best.score });
-	} else {
-		log(`Renewed: ${best.loan.title}`);
-		if (best.score < 1) {
-			log(`  (matched with ${Math.round(best.score * 100)}% confidence)`);
-		}
+	log(result.matchedTitle ? `Renewed: ${result.matchedTitle}` : "Loan renewed successfully.");
+	if (result.matchScore !== undefined && result.matchScore < 1) {
+		log(`  (matched with ${Math.round(result.matchScore * 100)}% confidence)`);
 	}
 }
 
 export async function renewAll(): Promise<void> {
-	const { jwt } = requireAuth();
-	const client = new LeitirClient(jwt);
-	const result = await client.renewAllLoans();
-
+	const result = await renewAllLoans(authClient());
 	if (jsonMode) {
 		output(result);
 	} else {

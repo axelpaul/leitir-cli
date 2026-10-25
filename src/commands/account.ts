@@ -1,13 +1,15 @@
-import { LeitirClient } from "../lib/client.ts";
-import { requireAuth } from "../lib/config.ts";
-import { formatDate, jsonMode, log, output, outputError } from "../lib/output.ts";
-import type { Hold } from "../lib/types.ts";
+import { jsonMode, log, output } from "../lib/output.ts";
+import {
+	authClient,
+	cancelRequest as cancelOne,
+	getAccountOverview,
+	getProfile,
+	listFines,
+	listRequests,
+} from "../lib/service.ts";
 
 export async function showCounters(): Promise<void> {
-	const { jwt } = requireAuth();
-	const client = new LeitirClient(jwt);
-	const res = await client.getCounters();
-	const counters = res.data.listofactions.action;
+	const counters = await getAccountOverview(authClient());
 
 	if (jsonMode) {
 		output({ counters });
@@ -15,19 +17,14 @@ export async function showCounters(): Promise<void> {
 	}
 
 	log("Account overview:\n");
-	for (const c of counters) {
-		log(`  ${c.type.padEnd(16)} ${c.value}`);
-	}
+	for (const c of counters) log(`  ${c.type.padEnd(16)} ${c.value}`);
 }
 
 export async function showFines(): Promise<void> {
-	const { jwt } = requireAuth();
-	const client = new LeitirClient(jwt);
-	const res = await client.getFines();
-	const fines = res.data.fines.fine;
+	const fines = await listFines(authClient());
 
 	if (jsonMode) {
-		output({ fines });
+		output({ count: fines.length, fines });
 		return;
 	}
 
@@ -38,115 +35,63 @@ export async function showFines(): Promise<void> {
 
 	log(`Fines (${fines.length}):\n`);
 	for (const fine of fines) {
-		const status = fine.finestatus === "CLOSED" ? "paid" : "open";
 		log(`  ${fine.title}`);
-		log(`    ${fine.originalfinesum}  |  ${status}  |  ${formatDate(fine.finedate)}  |  ${fine.finemainlocation}\n`);
+		log(
+			`    ${fine.originalAmount}  |  ${fine.paid ? "paid" : "open"}  |  ${fine.date}  |  ${fine.location}\n`,
+		);
 	}
 }
 
 export async function showRequests(): Promise<void> {
-	const { jwt } = requireAuth();
-	const client = new LeitirClient(jwt);
-	const res = await client.getRequests();
-	const holds = res.data.holds.hold;
+	const requests = await listRequests(authClient());
 
 	if (jsonMode) {
-		output({ holds });
+		output({ count: requests.length, requests });
 		return;
 	}
 
-	if (holds.length === 0) {
+	if (requests.length === 0) {
 		log("No active requests.");
 		return;
 	}
 
-	log(`Hold requests (${holds.length}):\n`);
-	for (const hold of holds) {
-		const available = hold.available === "Y" ? "READY" : hold.holdstatus;
-		const cancelable = hold.cancel === "Y" ? "cancelable" : "";
-		log(`  ${hold.title}`);
-		log(`    Status: ${available}  |  Pickup: ${hold.pickuplocationname}  |  Requested: ${formatDate(hold.requestdate)}  ${cancelable}`);
-		log(`    ID: ${hold.requestid}\n`);
+	log(`Hold requests (${requests.length}):\n`);
+	for (const r of requests) {
+		const status = r.available ? "READY" : r.status;
+		const cancelable = r.cancelable ? "cancelable" : "";
+		log(`  ${r.title}`);
+		log(
+			`    Status: ${status}  |  Pickup: ${r.pickup}  |  Requested: ${r.requestedAt}  ${cancelable}`,
+		);
+		log(`    ID: ${r.requestId}\n`);
 	}
-}
-
-// ─── Cancel request ─────────────────────────────────────────────
-
-function tokenize(text: string): string[] {
-	return text.toLowerCase().replace(/[^\w\sáéíóúýþæöð]/g, "").split(/\s+/).filter(Boolean);
-}
-
-function fuzzyScore(query: string, hold: Hold): number {
-	const queryTokens = tokenize(query);
-	const searchable = `${hold.title} ${hold.author ?? ""}`;
-	const targetTokens = tokenize(searchable);
-	let matched = 0;
-	for (const qt of queryTokens) {
-		if (targetTokens.some((tt) => tt.includes(qt) || qt.includes(tt))) {
-			matched++;
-		}
-	}
-	return queryTokens.length > 0 ? matched / queryTokens.length : 0;
 }
 
 export async function cancelRequest(idOrTitle: string): Promise<void> {
-	const { jwt } = requireAuth();
-	const client = new LeitirClient(jwt);
+	const result = await cancelOne(authClient(), idOrTitle);
 
-	// Numeric ID: use directly
-	if (/^\d+$/.test(idOrTitle)) {
-		const result = await client.cancelRequest(idOrTitle);
-		if (jsonMode) {
-			output(result);
-		} else {
-			log("Request cancelled.");
-		}
+	if (jsonMode) {
+		output(result);
 		return;
 	}
 
-	// Fuzzy match against hold titles
-	const res = await client.getRequests();
-	const holds = res.data.holds.hold;
-	const scored = holds
-		.map((h) => ({ hold: h, score: fuzzyScore(idOrTitle, h) }))
-		.filter((s) => s.score > 0.4)
-		.sort((a, b) => b.score - a.score);
-
-	if (scored.length === 0) {
-		outputError(`No request matching "${idOrTitle}". Run 'leitir requests' to see active requests.`, 3);
-	}
-
-	const best = scored[0]!;
-	if (best.hold.cancel !== "Y") {
-		outputError(`"${best.hold.title}" cannot be cancelled.`, 3);
-	}
-
-	const result = await client.cancelRequest(best.hold.requestid);
-
-	if (jsonMode) {
-		output({ ...result as object, matchedTitle: best.hold.title, matchScore: best.score });
-	} else {
-		log(`Cancelled: ${best.hold.title}`);
-		if (best.score < 1) {
-			log(`  (matched with ${Math.round(best.score * 100)}% confidence)`);
-		}
+	log(result.matchedTitle ? `Cancelled: ${result.matchedTitle}` : "Request cancelled.");
+	if (result.matchScore !== undefined && result.matchScore < 1) {
+		log(`  (matched with ${Math.round(result.matchScore * 100)}% confidence)`);
 	}
 }
 
 export async function showProfile(): Promise<void> {
-	const { jwt } = requireAuth();
-	const client = new LeitirClient(jwt);
-	const res = await client.getPersonalSettings();
-	const data = res.data;
+	const p = await getProfile(authClient());
 
 	if (jsonMode) {
-		output(data);
+		output(p);
 		return;
 	}
 
 	log("Profile:\n");
-	if (data.email?.value) log(`  Email:    ${data.email.value}`);
-	if (data.telephone1?.value) log(`  Phone:    ${data.telephone1.value}`);
-	if (data.address1?.value) log(`  Address:  ${data.address1.value}`);
-	if (data.zip?.value && data.city?.value) log(`  City:     ${data.zip.value} ${data.city.value}`);
+	if (p.email) log(`  Email:    ${p.email}`);
+	if (p.phone) log(`  Phone:    ${p.phone}`);
+	if (p.address) log(`  Address:  ${p.address}`);
+	if (p.zip && p.city) log(`  City:     ${p.zip} ${p.city}`);
 }

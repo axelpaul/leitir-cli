@@ -41,11 +41,15 @@ export class LeitirClient {
 		};
 	}
 
-	private async request<T>(method: string, path: string, opts?: {
-		headers?: Record<string, string>;
-		body?: string;
-		contentType?: string;
-	}): Promise<T> {
+	private async request<T>(
+		method: string,
+		path: string,
+		opts?: {
+			headers?: Record<string, string>;
+			body?: string;
+			contentType?: string;
+		},
+	): Promise<T> {
 		const url = `${BASE_URL}${path}`;
 		const headers: Record<string, string> = {
 			Accept: "application/json",
@@ -77,14 +81,10 @@ export class LeitirClient {
 			view: VIEW,
 		}).toString();
 
-		const data = await this.request<LoginResponse>(
-			"POST",
-			`/primaws/suprimaLogin?lang=${LANG}`,
-			{
-				body,
-				contentType: "application/x-www-form-urlencoded; charset=UTF-8",
-			},
-		);
+		const data = await this.request<LoginResponse>("POST", `/primaws/suprimaLogin?lang=${LANG}`, {
+			body,
+			contentType: "application/x-www-form-urlencoded; charset=UTF-8",
+		});
 
 		if (!data.jwtData) {
 			throw new ApiError("Login succeeded but no JWT returned", 500);
@@ -127,11 +127,9 @@ export class LeitirClient {
 	}
 
 	async getRequests(): Promise<AlmaResponse<RequestsData>> {
-		return this.request(
-			"GET",
-			`/primaws/rest/priv/myaccount/requests?lang=${LANG}&vid=${VIEW}`,
-			{ headers: this.authHeaders() },
-		);
+		return this.request("GET", `/primaws/rest/priv/myaccount/requests?lang=${LANG}&vid=${VIEW}`, {
+			headers: this.authHeaders(),
+		});
 	}
 
 	async cancelRequest(requestId: string): Promise<unknown> {
@@ -143,31 +141,30 @@ export class LeitirClient {
 	}
 
 	async getFines(): Promise<AlmaResponse<FinesData>> {
-		return this.request(
-			"GET",
-			`/primaws/rest/priv/myaccount/fines?lang=${LANG}&vid=${VIEW}`,
-			{ headers: this.authHeaders() },
-		);
+		return this.request("GET", `/primaws/rest/priv/myaccount/fines?lang=${LANG}&vid=${VIEW}`, {
+			headers: this.authHeaders(),
+		});
 	}
 
 	async getPersonalSettings(): Promise<{ data: PersonalSettings }> {
-		return this.request(
-			"GET",
-			`/primaws/rest/priv/myaccount/personal_settings?lang=${LANG}`,
-			{ headers: this.authHeaders() },
-		);
+		return this.request("GET", `/primaws/rest/priv/myaccount/personal_settings?lang=${LANG}`, {
+			headers: this.authHeaders(),
+		});
 	}
 
 	// ─── Search ───────────────────────────────────────────────────
 
-	async search(query: string, opts?: {
-		limit?: number;
-		offset?: number;
-		sort?: string;
-		scope?: string;
-		tab?: string;
-		local?: boolean;
-	}): Promise<SearchResponse> {
+	async search(
+		query: string,
+		opts?: {
+			limit?: number;
+			offset?: number;
+			sort?: string;
+			scope?: string;
+			tab?: string;
+			local?: boolean;
+		},
+	): Promise<SearchResponse> {
 		// Default to local Icelandic library holdings, use --global for Primo Central
 		const isLocal = opts?.local ?? true;
 		const scope = opts?.scope ?? (isLocal ? "10000_MYLIB" : "CONSORTIUM");

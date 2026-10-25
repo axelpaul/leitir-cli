@@ -35,9 +35,9 @@ export function formatDate(yyyymmdd: string): string {
 }
 
 export function daysUntil(yyyymmdd: string): number {
-	const year = Number.parseInt(yyyymmdd.slice(0, 4));
-	const month = Number.parseInt(yyyymmdd.slice(4, 6)) - 1;
-	const day = Number.parseInt(yyyymmdd.slice(6, 8));
+	const year = Number.parseInt(yyyymmdd.slice(0, 4), 10);
+	const month = Number.parseInt(yyyymmdd.slice(4, 6), 10) - 1;
+	const day = Number.parseInt(yyyymmdd.slice(6, 8), 10);
 	const due = new Date(year, month, day);
 	const now = new Date();
 	now.setHours(0, 0, 0, 0);
