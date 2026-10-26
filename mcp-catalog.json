@@ -1,0 +1,123 @@
+{
+  "$schema": "https://mcp.axelpaul.is/catalog.schema.json",
+  "id": "leitir",
+  "repo": "axelpaul/leitir-cli",
+  "name": "Leitir",
+  "service": "leitir.is",
+  "serviceUrl": "https://leitir.is",
+  "tagline": "Library searches, loans and renewals on leitir.is",
+  "description": "Search for books and other library materials on leitir.is without signing in. Sign in to see your loans, due dates and fines, renew loans and cancel holds.",
+  "examples": [
+    "Is Ronja ræningjadóttir available at my library?",
+    "When are my library books due?",
+    "Renew the loans for all books due this week."
+  ],
+  "category": "Libraries & culture",
+  "keywords": [
+    "bókasafn",
+    "library",
+    "books",
+    "bækur"
+  ],
+  "auth": "none for search; kennitala/library card + PIN for account features",
+  "binaries": true,
+  "tools": [
+    {
+      "name": "search",
+      "write": false,
+      "description": "Search the catalogue (local Icelandic holdings or worldwide), with limit/offset/sort"
+    },
+    {
+      "name": "suggest",
+      "write": false,
+      "description": "Autocomplete suggestions for a partial query"
+    },
+    {
+      "name": "loans",
+      "write": false,
+      "description": "Active loans with due dates, days left and renewability"
+    },
+    {
+      "name": "requests",
+      "write": false,
+      "description": "Hold requests with status, pickup location and cancellability"
+    },
+    {
+      "name": "fines",
+      "write": false,
+      "description": "Fines and fees"
+    },
+    {
+      "name": "account",
+      "write": false,
+      "description": "Account overview counters (loans, requests, fines)"
+    },
+    {
+      "name": "profile",
+      "write": false,
+      "description": "Patron contact details on file"
+    },
+    {
+      "name": "renew_loan",
+      "write": true,
+      "description": "Renew one loan by ID or fuzzy title match"
+    },
+    {
+      "name": "renew_all_loans",
+      "write": true,
+      "description": "Renew all renewable loans"
+    },
+    {
+      "name": "cancel_request",
+      "write": true,
+      "description": "Cancel one hold request by ID or fuzzy title match"
+    }
+  ],
+  "commands": [
+    "leitir search \"Ronja\"",
+    "leitir search \"Ronja\" --global --limit 5",
+    "leitir suggest \"Ronj\"",
+    "leitir login",
+    "leitir loans",
+    "leitir renew \"Ronja\"",
+    "leitir renew --all",
+    "leitir requests",
+    "leitir cancel \"Ronja\"",
+    "leitir fines",
+    "leitir account",
+    "leitir profile",
+    "leitir serve"
+  ],
+  "envVars": [
+    {
+      "name": "LEITIR_TOKEN",
+      "description": "JWT to use instead of the cached login token"
+    },
+    {
+      "name": "LEITIR_USERNAME",
+      "description": "Kennitala / library card for leitir login"
+    },
+    {
+      "name": "LEITIR_PASSWORD",
+      "description": "PIN / password for leitir login"
+    },
+    {
+      "name": "LEITIR_MCP_ENABLE_WRITES",
+      "description": "Set to 1 to expose renew/cancel MCP tools"
+    },
+    {
+      "name": "XDG_CONFIG_HOME",
+      "description": "Base config dir; token cached in $XDG_CONFIG_HOME/leitir-cli/token.json"
+    }
+  ],
+  "writesEnvVar": "LEITIR_MCP_ENABLE_WRITES",
+  "is": {
+    "tagline": "Bókaleit, útlán og endurnýjun á leitir.is",
+    "description": "Leitaðu að bókum og öðru safnefni á leitir.is án þess að skrá þig inn. Með innskráningu geturðu séð hvað þú ert með að láni, skoðað skiladaga og sektir, endurnýjað lán og hætt við frátektir.",
+    "examples": [
+      "Er Ronja ræningjadóttir til á bókasafninu mínu?",
+      "Hvenær á ég að skila bókunum?",
+      "Endurnýjaðu lán á öllum bókum sem á að skila í þessari viku."
+    ]
+  }
+}
