@@ -167,6 +167,7 @@ export class LeitirClient {
 		scope?: string;
 		tab?: string;
 		local?: boolean;
+		includeDelivery?: boolean;
 	}): Promise<SearchResponse> {
 		// Default to local Icelandic library holdings, use --global for Primo Central
 		const isLocal = opts?.local ?? true;
@@ -186,7 +187,7 @@ export class LeitirClient {
 			pcAvailability: "false",
 			isCDSearch: "false",
 			getMore: "0",
-			skipDelivery: "Y",
+			skipDelivery: opts?.includeDelivery ? "N" : "Y",
 			disableCache: "false",
 		});
 		const headers = this.token ? this.authHeaders() : { Accept: "application/json" };

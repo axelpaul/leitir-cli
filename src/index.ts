@@ -3,6 +3,7 @@
 import { cancelRequest, showCounters, showFines, showProfile, showRequests } from "./commands/account.ts";
 import { login, logout } from "./commands/auth.ts";
 import { listLoans, renewAll, renewLoan } from "./commands/loans.ts";
+import { requestPlan } from "./commands/request-plan.ts";
 import { search, suggest } from "./commands/search.ts";
 import { ApiError } from "./lib/client.ts";
 import { AuthError } from "./lib/config.ts";
@@ -39,6 +40,17 @@ const COMMANDS = [
 		description: "List hold requests and their status",
 		args: [],
 		env: [{ name: "LEITIR_TOKEN", description: "JWT token" }],
+	},
+	{
+		name: "request-plan",
+		description: "Dry-run request planning summary; never places a hold",
+		args: [
+			{ name: "query", type: "string", required: true, positional: true },
+			{ name: "--limit", type: "number", required: false, description: "Candidate count (default 5)" },
+			{ name: "--global", type: "boolean", required: false, description: "Include worldwide/remote results" },
+			{ name: "--pickup", type: "string", required: false, description: "Preferred pickup branch" },
+		],
+		env: [{ name: "LEITIR_TOKEN", description: "JWT token (optional, for personalized Primo context)" }],
 	},
 	{
 		name: "cancel",
@@ -145,6 +157,7 @@ Commands:
   renew <id|title>         Renew by loan ID or title (fuzzy match)
   renew --all              Renew all renewable loans
   requests                 List hold requests
+  request-plan <query>     Dry-run hold/request planning summary
   cancel <id|title>        Cancel a hold request (fuzzy match)
   fines                    List fines
   account                  Account overview
@@ -173,6 +186,7 @@ Examples:
   leitir loans
   leitir renew "Ronja"
   leitir renew --all
+  leitir request-plan "Ronja" --limit 3
   leitir search "Astrid Lindgren"
   leitir search "Ronja" --limit 5 --global
   LEITIR_TOKEN=eyJ... leitir loans`);
@@ -212,6 +226,17 @@ if (command !== "serve") try {
 		case "requests":
 			await showRequests();
 			break;
+
+		case "request-plan": {
+			const query = positional.slice(1).join(" ");
+			if (!query) outputError("Usage: leitir request-plan <query> [--limit N] [--global] [--pickup branch]");
+			await requestPlan(query, {
+				limit: getFlag("limit") ? Number(getFlag("limit")) : undefined,
+				global: hasFlag("global"),
+				preferredPickup: getFlag("pickup"),
+			});
+			break;
+		}
 
 		case "cancel": {
 			const idOrTitle = positional.slice(1).join(" ");

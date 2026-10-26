@@ -1,5 +1,18 @@
 # leitir-cli
 
+[MCP setup and client configuration](MCP.md)
+
+## MCP (local stdio)
+
+`leitir serve` exposes read-only `search`, `loans`, and `requests` tools to an
+MCP client. They use the same Leitir API client as the CLI. Login remains local
+to the CLI; the MCP server does not accept passwords or offer renewal, holds,
+cancellation, or account-change tools. Register the absolute path to the built
+`leitir` binary with `serve` as its argument. Authenticated tool results contain
+private library activity and are sent to whichever MCP client you connect.
+
+Use [the setup script](MCP.md) to build from source and generate your client configuration. Prebuilt release installers are not published.
+
 CLI for [leitir.is](https://leitir.is) — the Icelandic library platform (Ex Libris Primo/Alma).
 
 Search the catalog, manage loans, renew books, check fines, and place holds from the terminal. Designed for both humans and AI agents.
@@ -52,9 +65,25 @@ leitir renew --all                       # Renew everything
 ```bash
 leitir account                           # Overview (loan count, fines, requests)
 leitir requests                          # Hold requests and status
+leitir request-plan "Ronja"              # Dry-run request planning; never places a hold
 leitir fines                             # Fines and fees
 leitir profile                           # Personal settings
 ```
+
+### Holds and Pickup Branches
+
+This CLI currently lists existing requests, can cancel approved requests, and can produce a dry-run planning summary with `leitir request-plan <query>`. It does not expose a mutating `request/place-hold` command.
+
+`request-plan` is intentionally read-only. It searches catalog/delivery metadata, summarizes candidate record IDs and institutions, and recommends ordinary hold vs MSL/resource-sharing follow-up. It never submits a hold:
+
+```bash
+leitir request-plan "Ronja" --limit 3
+leitir request-plan "obscure title" --global
+```
+
+For Axel/Klói workflows, default pickup is **Borgarbókasafnið Sólheimum**. Do not choose Kópavogur or another merely available branch just because Alma offers it. If the ordinary hold flow does not offer Sólheimar for an item, use the MSL/resource-sharing path where appropriate, or stop and ask before acting.
+
+When investigating request flows, keep raw Primo/Alma responses, browser bundles, source maps, and long JSON in local scratch files rather than chat/tool output. Summarize only record IDs, candidate holdings, pickup options, and the recommended next action.
 
 ## Agent usage
 
