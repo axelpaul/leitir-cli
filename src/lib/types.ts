@@ -149,6 +149,21 @@ export interface SearchDoc {
 	};
 	context: string;
 	"@id"?: string;
+	delivery?: {
+		deliveryCategory?: string[];
+		availability?: string[];
+		displayedAvailability?: string;
+		displayLocation?: string | boolean | null;
+		additionalLocations?: string | boolean | null;
+		holding?: unknown[] | null;
+		hideResourceSharing?: boolean | null;
+		almaInstitutionsList?: {
+			instCode?: string;
+			instName?: string;
+			availabilityStatus?: string;
+			getitLink?: { displayText?: string; linkRecordId?: string }[];
+		}[];
+	};
 }
 
 export interface SearchResponse {
